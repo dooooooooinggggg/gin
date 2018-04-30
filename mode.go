@@ -14,9 +14,9 @@ import (
 const ENV_GIN_MODE = "GIN_MODE"
 
 const (
-	DebugMode   string = "debug"
-	ReleaseMode string = "release"
-	TestMode    string = "test"
+	DebugMode   = "debug"
+	ReleaseMode = "release"
+	TestMode    = "test"
 )
 const (
 	debugCode = iota
@@ -52,6 +52,9 @@ func SetMode(value string) {
 		ginMode = testCode
 	default:
 		panic("gin mode unknown: " + value)
+	}
+	if value == "" {
+		value = DebugMode
 	}
 	modeName = value
 }

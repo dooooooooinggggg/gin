@@ -581,6 +581,20 @@ func TestContextRenderJSON(t *testing.T) {
 	assert.Equal(t, "application/json; charset=utf-8", w.HeaderMap.Get("Content-Type"))
 }
 
+// Tests that the response is serialized as JSONP
+// and Content-Type is set to application/javascript
+func TestContextRenderJSONP(t *testing.T) {
+	w := httptest.NewRecorder()
+	c, _ := CreateTestContext(w)
+	c.Request, _ = http.NewRequest("GET", "http://example.com/?callback=x", nil)
+
+	c.JSONP(201, H{"foo": "bar"})
+
+	assert.Equal(t, 201, w.Code)
+	assert.Equal(t, "x({\"foo\":\"bar\"})", w.Body.String())
+	assert.Equal(t, "application/javascript; charset=utf-8", w.HeaderMap.Get("Content-Type"))
+}
+
 // Tests that no JSON is rendered if code is 204
 func TestContextRenderNoContentJSON(t *testing.T) {
 	w := httptest.NewRecorder()
@@ -676,8 +690,33 @@ func TestContextRenderNoContentSecureJSON(t *testing.T) {
 func TestContextRenderHTML(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, router := CreateTestContext(w)
+
 	templ := template.Must(template.New("t").Parse(`Hello {{.name}}`))
 	router.SetHTMLTemplate(templ)
+
+	c.HTML(201, "t", H{"name": "alexandernyquist"})
+
+	assert.Equal(t, 201, w.Code)
+	assert.Equal(t, "Hello alexandernyquist", w.Body.String())
+	assert.Equal(t, "text/html; charset=utf-8", w.HeaderMap.Get("Content-Type"))
+}
+
+func TestContextRenderHTML2(t *testing.T) {
+	w := httptest.NewRecorder()
+	c, router := CreateTestContext(w)
+
+	// print debug warning log when Engine.trees > 0
+	router.addRoute("GET", "/", HandlersChain{func(_ *Context) {}})
+	assert.Len(t, router.trees, 1)
+
+	var b bytes.Buffer
+	setup(&b)
+	defer teardown()
+
+	templ := template.Must(template.New("t").Parse(`Hello {{.name}}`))
+	router.SetHTMLTemplate(templ)
+
+	assert.Equal(t, "[GIN-debug] [WARNING] Since SetHTMLTemplate() is NOT thread-safe. It should only be called\nat initialization. ie. before any route is registered or the router is listening in a socket:\n\n\trouter := gin.Default()\n\trouter.SetHTMLTemplate(template) // << good place\n\n", b.String())
 
 	c.HTML(201, "t", H{"name": "alexandernyquist"})
 
